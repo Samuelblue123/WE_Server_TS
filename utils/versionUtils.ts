@@ -30,7 +30,7 @@ export function checkVersion(versionString: string | undefined): boolean {
 }
 
 export async function getLatestVersion(): Promise<IModVersionResponse | null> {
-    const url = "to be added";
+    const url = "https://api.modrinth.com/v2/project/world-event-tracker/version";
     try {
         const response = await fetch(url);
         const res = await response.json();

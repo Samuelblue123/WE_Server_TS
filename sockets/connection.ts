@@ -9,6 +9,8 @@ import { checkVersion } from "../utils/versionUtils.js";
 import UserModel from "../models/entities/userModel.js";
 import { getChannelFromWynnGuild } from "../utils/serverUtils.js";
 import userModel from "../models/entities/userModel.js";
+import {unwatchFile} from "node:fs";
+import {getAnnieLock, setAnnieLock} from "../index.js"
 
 const ENCODED_DATA_PATTERN = /([\u{F0000}-\u{FFFFD}]|[\u{100000}-\u{10FFFF}])+/gu;
 const wynnMessagePatterns: IWynnMessage[] = [
@@ -23,12 +25,13 @@ var concatMessage:string = "";
 
 
 export function registerMessageIndex() {
-    const allowedEvents:string[] = ["HaywireDefender", "ApproachingRaid", "SkitteringSpiders", "OvertakenFarm", "ArachnidAmbush", "EncroachingBlaze", "DarkDeacons", "EncroachingDestruction", "CorruptedSpring", "NecromanticSite", "RisenReturn", "EncroachingMisery", "TaintedShoreline", "AeonOrigin", "BowelsoftheRoots", "EncroachingReanimation", "ImproperBurialRites", "Blood-EncrustedMastaba", "EncroachingConflagration", "FailedHunt", "CanineAmbush", "BlazingCombustion", "EncroachingAblation", "RogueWyrmling", "SlimySchism", "SwashbucklingBrawl", "DesperateAmbush", "ABurningMemory", "EncroachingExtinction", "PeculiarGrotto", "LightEmissaries", "UnsettlingEncounters", "VisitfromBeyond", "AbandonedSentinels", "RealmicAntigen", "TerritorialTrolls", "ColossiIngrain", "EnragedEagle", "Ruff&Tumble", "DespermechOccupation", "DecommissionedWarMachines", "BubblingTerrace", "InfernalCaldera", "MaarAshpit", "ShatteredRoots", "AhmsMonuments", "IncomprehensibleCynosure", "ShapesintheDark", "AllEyesonMe", "MonumenttoLoss", "PestilentialDownpour", "OtherworldlyExhibition"];
+    const allowedEvents:string[] = ["Annie","HaywireDefender", "ApproachingRaid", "SkitteringSpiders", "OvertakenFarm", "ArachnidAmbush", "EncroachingBlaze", "DarkDeacons", "EncroachingDestruction", "CorruptedSpring", "NecromanticSite", "RisenReturn", "EncroachingMisery", "TaintedShoreline", "AeonOrigin", "BowelsoftheRoots", "EncroachingReanimation", "ImproperBurialRites", "Blood-EncrustedMastaba", "EncroachingConflagration", "FailedHunt", "CanineAmbush", "BlazingCombustion", "EncroachingAblation", "RogueWyrmling", "SlimySchism", "SwashbucklingBrawl", "DesperateAmbush", "ABurningMemory", "EncroachingExtinction", "PeculiarGrotto", "LightEmissaries", "UnsettlingEncounters", "VisitfromBeyond", "AbandonedSentinels", "RealmicAntigen", "TerritorialTrolls", "ColossiIngrain", "EnragedEagle", "Ruff&Tumble", "DespermechOccupation", "DecommissionedWarMachines", "BubblingTerrace", "InfernalCaldera", "MaarAshpit", "ShatteredRoots", "AhmsMonuments", "IncomprehensibleCynosure", "ShapesintheDark", "AllEyesonMe", "MonumenttoLoss", "PestilentialDownpour", "OtherworldlyExhibition"];
     allowedEvents.forEach(event => {
         messageIndex[event] = 0;
     })
 }
 const processedMessages = new Set<string>();
+const annieMessages = new Set<string>();
 
 
 const errorHandler = (toHandle: Function) => {
@@ -99,13 +102,40 @@ export default function registerSocketHandlers(
                 "uuid:",
                 socket.data.uuid
             );
-            
+
             if(!processedMessages.has(concatMessage)) {
                 processedMessages.add(concatMessage)
                 await notifUsers(message);
             }
         });
 
+        socket.on("annieMessage", async (message) => {
+            if (!checkVersion(socket.data.modVersion)) {
+                console.log(`skipping request from outdated mod version: ${socket.data.modVersion}`);
+                return;
+            }
+
+            const lock = getAnnieLock();
+            const now = Date.now();
+            const thirteenHours = 13 * 60 * 60 * 1000;
+
+            if (!lock.countdownStarted || now - lock.timestamp > thirteenHours) {
+                await notifMag(message);
+
+                lock.countdownStarted = true;
+                lock.timestamp = now;
+                setAnnieLock(lock);
+
+                setTimeout(async () => {
+                    try {
+                        await notifMag("59m");
+                        setAnnieLock({ countdownStarted: false, timestamp: Date.now() });
+                    } catch (err) {
+                        console.error("Error in delayed notifMag:", err);
+                    }
+                }, 11 * 60 * 60 * 1000);
+            }
+        });
         socket.on("sync", () => {
             socket.data.messageIndex = messageIndex[0];
         });
@@ -123,6 +153,16 @@ export async function notifUsers(message:string){
             s.emit("serverMessage", message);
         }
     });
+}
+
+export async function notifMag(message:string){
+    const allSockets = await io.fetchSockets();
+    allSockets.forEach(async (s) => {
+        if (s.data.username == "Magbot" && s.handshake.headers["key"]==process.env.MAGKEY){
+            const unix= await convertDurationToUnix(message) + "";
+            s.emit("annieBotMessage", unix);
+        }
+    })
 }
 
 export async function shouldBNotif(socket:RemoteSocket<ServerToClientEvents,SocketData>) {
@@ -159,6 +199,32 @@ export async function findUsers() {
     return users;
 }
 
+export async function convertDurationToUnix(timeStr: String) {
+    // Extract hours and minutes using RegExp
+    const match = timeStr.match(/(?:(\d+)h)?\s*(?:(\d+)m)?/) || timeStr.match(/(?:(\d+)m)?/);
+
+    if (!match) {
+        throw new Error("Invalid format. Expected something like '11h 59m'");
+    }
+
+    const hours = parseInt(match[1] || "0", 10);
+    const minutes = parseInt(match[2] || "0", 10);
+
+    // Get current time in milliseconds
+    const now = Date.now();
+
+    // Add duration
+    const durationMs = (hours * 60 + minutes) * 60 * 1000;
+    const futureTime = now + durationMs;
+
+    // Convert to Unix timestamp (in seconds)
+    return Math.floor(futureTime / 1000);
+}
+
 setInterval(() => {
     processedMessages.clear();
 }, 90 * 1000); // every 90 seconds
+
+setInterval(()=>{
+    annieMessages.clear()
+    }, 13 * 60 * 60 * 1000);

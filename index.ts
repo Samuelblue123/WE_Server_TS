@@ -9,6 +9,24 @@ import "./config";
 import {errorHandler} from "./middleware/errorHandler.middleware.js";
 import {mapEndpoints} from "./endpoints.js";
 
+import fs from "fs";
+
+const path = "./annie-lock.json"; // file to track lock state
+
+export function getAnnieLock() {
+    try {
+        const data = JSON.parse(fs.readFileSync(path));
+        return data;
+    } catch {
+        return { countdownStarted: false, timestamp: 0 };
+    }
+}
+
+export function setAnnieLock(data) {
+    fs.writeFileSync(path, JSON.stringify(data));
+}
+
+
 process.on('SIGTERM', () => {
     console.log('Received SIGTERM, shutting down gracefully...');
     process.exit(0);

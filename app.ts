@@ -27,8 +27,7 @@ io.on("new_namespace", (namespace) => {
     namespace.use(validateSocket);
 });
 
-
-
-
+console.log(io.engine.opts.pingInterval);
+console.log(io.engine.opts.pingTimeout);
 export {io, server };
 export default app;
