@@ -2,6 +2,7 @@
 node_modules
 
 # misc
+package-lock.json
 .env.development
 .idea
 dump
