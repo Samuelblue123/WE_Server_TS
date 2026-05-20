@@ -101,7 +101,7 @@ export default function registerSocketHandlers(
                 "emitted by:",
                 socket.data.username,
             );
-
+            console.log("clients:", io.engine.clientsCount)
             if(!processedMessages.has(concatMessage)) {
                 processedMessages.add(concatMessage);
                 notifUsers(message);
