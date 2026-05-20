@@ -1,17 +1,19 @@
 import express from "express";
-import app, {server} from "./app.js";
-import {connect} from "mongoose";
+import app from "./app.js";
 import bodyParser from "body-parser";
-import {registerMessageIndex} from "./sockets/connection.js";
+import { createServer } from "http";
+import { Server } from "socket.io";
+import registerSocketHandlers, {registerMessageIndex} from "./sockets/connection.js";
 
 import cors from "cors";
 import "./config";
-import {errorHandler} from "./middleware/errorHandler.middleware.js";
 import {mapEndpoints} from "./endpoints.js";
 
 import fs from "fs";
 
 const path = "./annie-lock.json"; // file to track lock state
+
+const httpServer = createServer(app);
 
 export function getAnnieLock() {
     try {
@@ -46,23 +48,20 @@ process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection:', reason);
     // Handle or log the promise rejection here.
 });
-const port = process.env.PORT || 3000;
+
+export const io = new Server(httpServer, {
+    cors: {
+        origin: "*"
+    }
+});
+
+registerSocketHandlers(io);
+
+httpServer.listen(process.env.PORT || 3000);
+
 app.use(express.json());
 app.use(cors());
 app.use(bodyParser.urlencoded({extended: true}));
-// Connect to database
-try {
-    const dbUrl = process.env.DB_URL;
-    connect(dbUrl, {retryWrites: true, writeConcern: {w: "majority"}}).then(() => {
-    });
-    console.log("Database Connected");
-    registerMessageIndex()
-    server.listen(port, () => {
-        console.log(`Socket.io server listening on port ${port}`)
-    });
-} catch (error) {
-    console.error("Failed to connect to database:", error);
-}
+
 
 mapEndpoints(app);
-app.use(errorHandler);

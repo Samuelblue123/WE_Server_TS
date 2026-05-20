@@ -2,7 +2,7 @@
  * Defines the minimum allowed mod version in the format:
  * [major, minor, revision, beta]
  */
-const minimumModVersion = [1, 2];
+const minimumModVersion = [2, 0];
 const versionExtractorPattern = new RegExp(
     "^(?<major>\\d?).(?<minor>\\d+)?"
 );
