@@ -101,11 +101,9 @@ export default function registerSocketHandlers(
                 "emitted by:",
                 socket.data.username,
             );
-            console.log("clients:", io.engine.clientsCount)
-            socket.broadcast.emit("serverMessage", message);
             if(!processedMessages.has(concatMessage)) {
                 processedMessages.add(concatMessage);
-                notifUsers(message);
+                socket.broadcast.emit("serverMessage", message);
             }
         });
 
@@ -144,14 +142,6 @@ export default function registerSocketHandlers(
         socket.on("disconnect", (reason) => {
             console.log(`${socket.data.username} disconnected: ${reason}`);
         });
-    });
-}
-
-
-export async function notifUsers(message:string){
-    const allSockets = await io.fetchSockets();
-    allSockets.forEach(async (s) => {
-        s.emit("serverMessage", message);
     });
 }
 
