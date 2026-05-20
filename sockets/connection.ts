@@ -23,14 +23,14 @@ export function registerMessageIndex() {
     const allowedEvents:string[] = ["Annie","HaywireDefender", "ApproachingRaid", "SkitteringSpiders", "OvertakenFarm",
         "ArachnidAmbush", "EncroachingBlaze", "DarkDeacons", "EncroachingDestruction", "CorruptedSpring", "NecromanticSite",
         "RisenReturn", "EncroachingMisery", "TaintedShoreline", "AeonOrigin", "BowelsoftheRoots", "EncroachingReanimation",
-        "ImproperBurialRites", "Blood-EncrustedMastaba", "EncroachingConflagration", "FailedHunt", "CanineAmbush", "BlazingCombustion",
+        "ImproperBurialRites", "Blood-EncrustedMastaba", "EncroachingConflagration", "FailedHunt", "CanineAmbush", "BlazingCombustion", "LonelyIslet",
         "EncroachingAblation", "RogueWyrmling", "SlimySchism", "SwashbucklingBrawl", "DesperateAmbush", "ABurningMemory",
         "EncroachingExtinction", "PeculiarGrotto", "LightEmissaries", "UnsettlingEncounters", "VisitfromBeyond", "AbandonedSentinels",
         "RealmicAntigen", "TerritorialTrolls", "ColossiIngrain", "EnragedEagle", "Ruff&Tumble", "DespermechOccupation",
         "DecommissionedWarMachines", "BubblingTerrace", "InfernalCaldera", "MaarAshpit", "ShatteredRoots", "AhmsMonuments",
         "IncomprehensibleCynosure", "ShapesintheDark", "AllEyesonMe", "MonumenttoLoss", "PestilentialDownpour",
         "OtherworldlyExhibition", "SwamplandSquabble", "AutumnPoachers", "StackpeakPinnacle", "KaroshiUnion", "SteelSkirmish",
-        "BiohazardousBloom", "TreeTopCradle", "FossilFighters", "GlacialTraining", "PatrollingSoldiers", "MoleMeetUp",
+        "BiohazardousBloom", "Tree-TopCradle","ApiaryHive", "FossilFighters", "GlacialTraining", "PatrollingSoldiers", "MoleMeet-Up",
         "CitadelBarracks", "RoyalAlchemists", "PalaceGuards"];
     allowedEvents.forEach(event => {
         messageIndex[event] = 0;
@@ -104,7 +104,7 @@ export default function registerSocketHandlers(
 
             if(!processedMessages.has(concatMessage)) {
                 processedMessages.add(concatMessage);
-                socket.broadcast.emit("serverMessage", message);
+                notifUsers(message);
             }
         });
 
@@ -146,6 +146,13 @@ export default function registerSocketHandlers(
     });
 }
 
+
+export async function notifUsers(message:string){
+    const allSockets = await io.fetchSockets();
+    allSockets.forEach(async (s) => {
+        s.emit("serverMessage", message);
+    });
+}
 
 //export async function notifMag(message:string){
 //    const allSockets = await io.fetchSockets();
